@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use crate::Command::Unknown;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let file = File::open("./rust-2021/inputs/day_2_input")?;
@@ -9,20 +8,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut contents = vec![];
 
     for line in buf_reader.lines() {
-        let line = line?;
-        let l = line.split(" ").collect::<Vec<&str>>();
-        let cmd = l[0];
-        let amount = l[1].parse::<i32>()?;
-        contents.push(match (cmd, amount) {
-            ("forward", l) => Command::Forward(l),
-            ("down", l) => Command::Down(l),
-            ("up", l) => Command::Up(l),
-            _ => Unknown
-        });
+        contents.push(line?);
     }
 
-    calculate_part_1(&contents);
-    calculate_part_2(&contents);
+    let parsed_input = parse(contents);
+
+    calculate_part_1(&parsed_input);
+    calculate_part_2(&parsed_input);
 
     Ok(())
 }
@@ -30,8 +22,25 @@ fn main() -> Result<(), Box<dyn Error>> {
 enum Command {
     Forward(i32),
     Down(i32),
-    Up(i32),
-    Unknown
+    Up(i32)
+}
+
+fn parse(input: Vec<String>) -> Vec<Command> {
+    input.into_iter()
+        .map(|line| {
+            let l = line.split(" ").collect::<Vec<&str>>();
+            let cmd = l[0];
+            let amount = l[1].parse::<i32>().expect("can't parse");
+
+            match (cmd, amount) {
+                ("forward", l) => Some(Command::Forward(l)),
+                ("down", l) => Some(Command::Down(l)),
+                ("up", l) => Some(Command::Up(l)),
+                _ => None
+            }
+        })
+        .filter_map(|e| e)
+        .collect()
 }
 
 fn calculate_part_1(input: &Vec<Command>) {
@@ -41,7 +50,6 @@ fn calculate_part_1(input: &Vec<Command>) {
                 Command::Forward(u) => (hoz + u, dep),
                 Command::Down(u) => (hoz, dep + u),
                 Command::Up(u) => (hoz, dep - u),
-                _ => (hoz, dep)
             }
         });
 
@@ -55,7 +63,6 @@ fn calculate_part_2(input: &Vec<Command>) {
                 Command::Down(u) => (hoz, dep, aim + u),
                 Command::Up(u) => (hoz, dep, aim - u),
                 Command::Forward(u) => (hoz + u, dep + aim * u, aim),
-                _ => (hoz, dep, aim)
             }
         });
 

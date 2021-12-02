@@ -3,18 +3,26 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let input = File::open("./rust-2021/inputs/day_1_1_input")?;
-    let mut buf_reader = BufReader::new(input);
-    let mut numbers = vec![];
+    let file = File::open("./rust-2021/inputs/day_1_1_input")?;
+    let buf_reader = BufReader::new(file);
+    let mut contents = vec![];
 
     for line in buf_reader.lines() {
-        numbers.push(line?.parse::<i32>()?);
+        contents.push(line?);
     }
 
-    part_1(&numbers);
-    part_2(&numbers);
+    let parsed_input = parse(contents);
+
+    part_1(&parsed_input);
+    part_2(&parsed_input);
 
     Ok(())
+}
+
+fn parse(input: Vec<String>) -> Vec<i32> {
+    input.into_iter()
+        .map(|l| l.parse().expect("can't parse into i32"))
+        .collect()
 }
 
 fn part_1(input: &Vec<i32>) {

@@ -32,7 +32,6 @@ fn parse(input: Vec<String>) -> Vec<Reading> {
                 val: isize::from_str_radix(&l[..], 2).unwrap(),
                 size: l.len()
             }
-
         })
         .collect()
 }
@@ -49,32 +48,25 @@ fn calculate_part_1(input: &Vec<Reading>) {
                 readings[i] += 1;
             }
 
-            let l = g >> 1;
             g = g >> 1;
         }
-
     }
 
     // Reduce down
-    let mut g = String::new();
-    let mut e = String::new();
-    for n in readings.into_iter().rev() {
-        if (total - n) >= (total / 2) {
-            g.push("1".parse().unwrap());
-            e.push("0".parse().unwrap())
+    let mut g = 0;
+    let mut e = 0;
+    for (i, n) in readings.into_iter().enumerate() {
+        if n >= total - n {
+            g += 1 << i;
         } else {
-            g.push("0".parse().unwrap());
-            e.push("1".parse().unwrap());
+            e += 1 << i;
         }
     }
 
-
-    let g = isize::from_str_radix(&g, 2).unwrap();
-    let e = isize::from_str_radix(&e, 2).unwrap();
     println!("{:?}", g * e);
 }
 
-fn find_oxygen(input: &Vec<Reading>, cursor: usize) -> Vec<Reading> {
+fn find(input: &Vec<Reading>, cursor: usize, common: bool) -> Vec<Reading> {
     if input.len() == 1 {
         return input.clone();
     }
@@ -88,52 +80,31 @@ fn find_oxygen(input: &Vec<Reading>, cursor: usize) -> Vec<Reading> {
         }
     }
 
-    let most = if count >= (total - count) { 1 } else { 0 };
-    let mut oxygen = vec![];
+    let keep = if count >= (total - count) {
+        if common { 1 } else { 0 }
+    } else {
+        if common { 0 } else { 1 }
+    };
+
+    let mut results = vec![];
     for reading in input.into_iter() {
-        if ((reading.val >> cursor) & 1) ^ most == 0 {
-            oxygen.push(reading.clone());
+        if ((reading.val >> cursor) & 1) ^ keep == 0 {
+            results.push(reading.clone());
         }
     }
 
-    return oxygen;
-}
-
-fn find_co2(input: &Vec<Reading>, cursor: usize) -> Vec<Reading> {
-    if input.len() == 1 {
-        return input.clone();
-    }
-
-    let total = input.len();
-
-    let mut count = 0;
-    for reading in input.into_iter() {
-        let mut g = reading.val.clone();
-        if (g >> cursor) & 1 == 1 {
-            count += 1;
-        }
-    }
-
-    let least = if count >= total - count { 0 } else { 1 };
-    let mut co2 = vec![];
-    for reading in input.into_iter() {
-        if ((reading.val >> cursor) & 1) ^ least == 0 {
-            co2.push(reading.clone());
-        }
-    }
-
-    return co2;
+    return results;
 }
 
 fn calculate_part_2(input: &Vec<Reading>) {
     let mut oxygen = input.clone();
     for i in (0..input[0].size).rev() {
-        oxygen = find_oxygen(&oxygen, i);
+        oxygen = find(&oxygen, i, true);
     }
 
     let mut co2 = input.clone();
     for i in (0..input[0].size).rev() {
-        co2 = find_co2(&co2, i);
+        co2 = find(&co2, i, false);
     }
 
     println!("{:?}", co2[0].val * oxygen[0].val);

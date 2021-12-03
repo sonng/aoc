@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         contents.push(line?);
     }
 
-    let parsed_input = parse(contents);
+    let parsed_input = parse(contents)?;
 
     calculate_part_1(&parsed_input);
     calculate_part_2(&parsed_input);
@@ -25,19 +25,18 @@ struct Reading {
     size: usize
 }
 
-fn parse(input: Vec<String>) -> Vec<Reading> {
-    input.iter()
-        .map(|l| {
-            Reading {
-                val: isize::from_str_radix(&l[..], 2).unwrap(),
-                size: l.len()
-            }
+fn parse(input: Vec<String>) -> Result<Vec<Reading>, Box<dyn Error>> {
+    let mut results = vec![];
+    for l in input {
+        results.push(Reading {
+            val: isize::from_str_radix(&l[..], 2)?,
+            size: l.len()
         })
-        .collect()
+    }
+    Ok(results)
 }
 
 fn calculate_part_1(input: &Vec<Reading>) {
-    let total = input.len();
     let mut readings = vec![0; input[0].size];
 
     // Count bits
@@ -52,48 +51,35 @@ fn calculate_part_1(input: &Vec<Reading>) {
         }
     }
 
-    // Reduce down
-    let mut g = 0;
-    let mut e = 0;
-    for (i, n) in readings.into_iter().enumerate() {
-        if n >= total - n {
-            g += 1 << i;
-        } else {
-            e += 1 << i;
-        }
-    }
+    let total = input.len();
+    let (g, e) = readings.into_iter().enumerate()
+        .fold((0, 0), |(g, e), (i, n) | {
+            if n >= total - n {
+                (g + (1 << i), e)
+            } else {
+                (g, e + (1 << i))
+            }
+        });
 
     println!("{:?}", g * e);
 }
 
 fn find(input: &Vec<Reading>, cursor: usize, common: bool) -> Vec<Reading> {
-    if input.len() == 1 {
-        return input.clone();
-    }
+    if input.len() == 1 { return input.clone(); }
 
-    let total = input.len();
-    let mut count = 0;
-    for reading in input.into_iter() {
-        let mut g = reading.val.clone();
-        if (g >> cursor) & 1 == 1 {
-            count += 1;
-        }
-    }
+    let count = input.into_iter()
+        .filter(|reading| (reading.val >> cursor) & 1 == 1)
+        .count();
 
-    let keep = if count >= (total - count) {
+    let keep = if count >= (input.len() - count) {
         if common { 1 } else { 0 }
     } else {
         if common { 0 } else { 1 }
     };
 
-    let mut results = vec![];
-    for reading in input.into_iter() {
-        if ((reading.val >> cursor) & 1) ^ keep == 0 {
-            results.push(reading.clone());
-        }
-    }
-
-    return results;
+    input.into_iter().cloned()
+        .filter(|reading| ((reading.val >> cursor) & 1) ^ keep == 0)
+        .collect()
 }
 
 fn calculate_part_2(input: &Vec<Reading>) {

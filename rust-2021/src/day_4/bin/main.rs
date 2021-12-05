@@ -98,21 +98,19 @@ fn mark_board(board: &mut Board, number: &String) {
 }
 
 fn calculate_part_1(mut puzzle: Puzzle) {
-    'outer: for drawn_numbers in puzzle.numbers.chunks(5) {
-        for num in drawn_numbers {
-            for mut board in &mut puzzle.boards {
-                mark_board(&mut board, num);
+    'outer: for num in puzzle.numbers {
+        for mut board in &mut puzzle.boards {
+            mark_board(&mut board, &num);
 
-                if check_board(board) {
-                    let sum: i32 = board.iter()
-                        .flat_map(|i| i)
-                        .filter(|s| !s.starts_with('-'))
-                        .map(|s| s.parse::<i32>().unwrap())
-                        .sum();
+            if check_board(board) {
+                let sum: i32 = board.iter()
+                    .flat_map(|i| i)
+                    .filter(|s| !s.starts_with('-'))
+                    .map(|s| s.parse::<i32>().unwrap())
+                    .sum();
 
-                    println!("{:?}", sum * num.parse::<i32>().unwrap());
-                    break 'outer;
-                }
+                println!("{:?}", sum * num.parse::<i32>().unwrap());
+                break 'outer;
             }
         }
     }
@@ -120,34 +118,32 @@ fn calculate_part_1(mut puzzle: Puzzle) {
 
 fn calculate_part_2(mut puzzle: Puzzle) {
     let mut boards = puzzle.boards;
-    'outer: for drawn_numbers in puzzle.numbers.chunks(5) {
-        for num in drawn_numbers {
-            let mut to_be_removed = vec![];
-            let num_of_boards = boards.len();
+    'outer: for num in drawn_numbers {
+        let mut to_be_removed = vec![];
+        let num_of_boards = boards.len();
 
-            for i in 0..boards.len() {
-                let mut board = &mut boards[i];
-                mark_board(&mut board, num);
+        for i in 0..boards.len() {
+            let mut board = &mut boards[i];
+            mark_board(&mut board, num);
 
-                if check_board(board) {
-                    if num_of_boards > 1 {
-                        to_be_removed.push(i);
-                    } else {
-                        let sum = board.iter()
-                            .flat_map(|i| i)
-                            .filter(|s| !s.starts_with('-'))
-                            .map(|s| s.parse::<i32>().unwrap())
-                            .sum::<i32>();
+            if check_board(board) {
+                if num_of_boards > 1 {
+                    to_be_removed.push(i);
+                } else {
+                    let sum = board.iter()
+                        .flat_map(|i| i)
+                        .filter(|s| !s.starts_with('-'))
+                        .map(|s| s.parse::<i32>().unwrap())
+                        .sum::<i32>();
 
-                        println!("{:?}", sum * num.parse::<i32>().unwrap());
-                        break 'outer;
-                    }
+                    println!("{:?}", sum * num.parse::<i32>().unwrap());
+                    break 'outer;
                 }
             }
+        }
 
-            for idx in to_be_removed.into_iter().rev() {
-                boards.remove(idx);
-            }
+        for idx in to_be_removed.into_iter().rev() {
+            boards.remove(idx);
         }
     }
 }

@@ -78,3 +78,28 @@ fn calculate_part_two(input: &ParsedInput) -> Solution {
     count
 }
 
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_calculate_part_1() -> Result<(), Box<dyn Error>> {
+        let contents = read_file("./inputs/day_6_test_input")?;
+        let input = parse(contents)?;
+
+        assert_eq!(5934, calculate_part_one(&input));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_calculate_part_2() -> Result<(), Box<dyn Error>> {
+        let contents = read_file("./inputs/day_6_test_input")?;
+        let input = parse(contents)?;
+
+        assert_eq!(26984457539, calculate_part_two(&input));
+
+        Ok(())
+    }
+}

@@ -31,24 +31,16 @@ fn calculate_part_1(input: &Input) -> Output {
         (spots[spots.len() / 2] + spots[spots.len() / 2 - 1]) / 2
     };
 
-    let mut results = 0;
-
-    for i in spots {
-        results += (i - median).abs();
-    }
-
-    results
+    spots.iter()
+        .map(|i| (i - median).abs())
+        .sum()
 }
 
 fn calc(mean: i64, input: &Input) -> Output {
-    let mut results = 0;
-    for i in input {
-        let distance = (mean - i).abs();
-        let fuel = (distance * (distance + 1)) / 2;
-        results += fuel;
-    }
-
-    results
+    input.iter()
+        .map(|i| (mean - i).abs())
+        .map(|i| (i * (i + 1)) / 2)
+        .sum()
 }
 
 fn calculate_part_2(input: &Input) -> Output {

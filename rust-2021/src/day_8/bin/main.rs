@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
 use aoc_utils::{Puzzle, run_all};
 
@@ -13,24 +13,15 @@ type Output = i32;
 
 #[derive(Debug)]
 struct Segments {
-    signal_patterns: Vec<String>,
-    digit_output: Vec<String>
+    signal_patterns: Vec<BTreeSet<u8>>,
+    digit_output: Vec<BTreeSet<u8>>
 }
 
-fn parse_patterns(line: &String, should_sort: bool) -> Vec<String> {
-    let mut results = line.split(' ')
+fn parse_patterns(line: &String) -> Vec<BTreeSet<u8>> {
+    line.split(' ')
         .filter(|s| !s.is_empty())
-        .map(|s| {
-            let mut s = s.chars().collect::<Vec<char>>();
-            s.sort_by(|a, b| b.cmp(a));
-            String::from_iter(s)
-        })
-        .collect::<Vec<String>>();
-
-    if should_sort {
-        results.sort_by(|a, b| a.len().cmp(&b.len()));
-    }
-    results
+        .map(|s| s.bytes().collect::<BTreeSet<_>>())
+        .collect::<Vec<BTreeSet<_>>>()
 }
 /*
   0:      1:      2:      3:      4:
@@ -70,28 +61,26 @@ b    .  b    .  .    c  b    c  b    c
  */
 impl Segments {
 
-    fn find_mapping(&self) -> HashMap<String, String> {
-        let mut digits_mapping = HashMap::<i32, String>::new();
-
+    fn find_mapping(&self) -> HashMap<&BTreeSet<u8>, String> {
+        let mut digits_mapping = HashMap::<i32, &BTreeSet<_>>::new();
         for signal in &self.signal_patterns {
-            let signal = signal.clone();
             match signal.len() {
                 2 => { digits_mapping.insert(1, signal); },
                 3 => { digits_mapping.insert(7, signal); },
                 4 => { digits_mapping.insert(4, signal); },
                 5 => {
-                    if digits_mapping[&7].chars().all(|c| signal.contains(c)){
+                    if digits_mapping[&7].is_subset(&signal) {
                         digits_mapping.insert(3, signal);
-                    } else if digits_mapping[&4].chars().filter(|c| signal.contains(c.clone())).count() == 2 {
+                    } else if digits_mapping[&4].intersection(&signal).cloned().collect::<Vec<u8>>().len() == 2 {
                         digits_mapping.insert(2, signal);
                     } else {
                         digits_mapping.insert(5, signal);
                     }
                 },
                 6 => {
-                    if digits_mapping[&4].chars().all(|c| signal.contains(c)) {
+                    if digits_mapping[&4].is_subset(&signal) {
                         digits_mapping.insert(9, signal);
-                    } else if digits_mapping[&5].chars().all(|c| signal.contains(c)) {
+                    } else if digits_mapping[&5].is_subset(&signal) {
                         digits_mapping.insert(6, signal);
                     } else {
                         digits_mapping.insert(0, signal);
@@ -112,9 +101,7 @@ impl Segments {
     fn solve(&self) -> i32 {
         let mapping = self.find_mapping();
         let digits = self.digit_output.iter()
-            .map(|digit| {
-                mapping[digit].clone()
-            })
+            .map(|digit| mapping[digit].clone())
             .collect::<String>();
 
         digits.parse::<i32>().unwrap()
@@ -128,8 +115,11 @@ impl Puzzle<Input, Output> for Day8 {
             let line_split = line.split('|')
                 .map(String::from)
                 .collect::<Vec<String>>();
-            let signal_patterns = parse_patterns(&line_split[0], true);
-            let digit_output = parse_patterns(&line_split[1], false);
+
+            let mut signal_patterns = parse_patterns(&line_split[0]);
+            signal_patterns.sort_by(|a, b| a.len().cmp(&b.len()));
+
+            let digit_output = parse_patterns(&line_split[1]);
 
             results.push(Segments { signal_patterns, digit_output })
         }

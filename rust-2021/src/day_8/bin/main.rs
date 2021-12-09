@@ -69,18 +69,18 @@ impl Segments {
                 3 => { digits_mapping.insert(7, signal); },
                 4 => { digits_mapping.insert(4, signal); },
                 5 => {
-                    if digits_mapping[&7].is_subset(&signal) {
+                    if digits_mapping[&7].is_subset(signal) {
                         digits_mapping.insert(3, signal);
-                    } else if digits_mapping[&4].intersection(&signal).cloned().collect::<Vec<u8>>().len() == 2 {
+                    } else if digits_mapping[&4].intersection(signal).cloned().collect::<Vec<u8>>().len() == 2 {
                         digits_mapping.insert(2, signal);
                     } else {
                         digits_mapping.insert(5, signal);
                     }
                 },
                 6 => {
-                    if digits_mapping[&4].is_subset(&signal) {
+                    if digits_mapping[&4].is_subset(signal) {
                         digits_mapping.insert(9, signal);
-                    } else if digits_mapping[&5].is_subset(&signal) {
+                    } else if digits_mapping[&5].is_subset(signal) {
                         digits_mapping.insert(6, signal);
                     } else {
                         digits_mapping.insert(0, signal);

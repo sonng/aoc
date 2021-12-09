@@ -12,17 +12,20 @@ type Input = Vec<Vec<u8>>;
 type Output = u32;
 
 fn find_low_points(input: &Input) -> Vec<(usize,  usize)> {
+    let height = input.len() as i32;
+    let width = input[0].len() as i32;
+
     let mut results = vec![];
 
-    let mut y: i32 = 0;
-    while y < input.len() as i32 {
-        let mut x: i32 = 0;
-        while x < input[y as usize].len() as i32 {
+    let mut y = 0;
+    while y < height {
+        let mut x = 0;
+        while x < width {
             let digit = input[y as usize][x as usize];
             if ((y - 1 >= 0) && input[(y - 1) as usize][x as usize] <= digit) ||
                 ((x - 1 >= 0) && input[y as usize][(x - 1) as usize] <= digit) ||
-                ((x + 1 < input[y as usize].len() as i32) && input[y as usize][(x + 1) as usize] <= digit) ||
-                ((y + 1 < (input.len() as i32)) && input[(y + 1) as usize][x as usize] <= digit)
+                ((x + 1 < width) && input[y as usize][(x + 1) as usize] <= digit) ||
+                ((y + 1 < height) && input[(y + 1) as usize][x as usize] <= digit)
             {
                 x += 1;
                 continue;
@@ -42,11 +45,7 @@ fn crawl(x: i32, y: i32, input: &Input, seen: &mut BTreeSet<(i32, i32)>) -> Vec<
     let height = input.len() as i32;
     let width = input[0].len() as i32;
 
-    if y < 0 || y >= height || x < 0 || x >= width {
-        return vec![];
-    }
-
-    if seen.contains(&(x, y)) {
+    if y < 0 || y >= height || x < 0 || x >= width || seen.contains(&(x, y)) {
         return vec![];
     }
 
@@ -88,36 +87,21 @@ impl Puzzle<Input, Output> for Day9 {
     }
 
     fn calculate_part_1(&self, input: &Input) -> Output {
-        let low_points = find_low_points(input);
-
-        let mut results = 0;
-
-        for (x, y) in low_points {
-            results += 1 + convert_u8(input[y][x]);
-        }
-
-        results
+        find_low_points(input).into_iter()
+            .map(|(x, y)| 1 + convert_u8(input[y][x]))
+            .sum()
     }
 
     fn calculate_part_2(&self, input: &Input) -> Output {
-        let low_points = find_low_points(input);
         let mut heap = BinaryHeap::new();
 
-        for (x, y) in low_points {
-            heap.push(calc_basin_size(x, y, input));
-        }
+        find_low_points(input).into_iter()
+            .map(|(x, y)| calc_basin_size(x, y, input))
+            .for_each(|n| heap.push(n));
 
-        let mut results = 1;
-        let mut counter = 0;
-
-        while let Some(size) = heap.pop() {
-            if counter == 3 { break; }
-
-            results *= size;
-            counter += 1;
-        }
-
-        results
+        heap.iter()
+            .take(3)
+            .fold(1, |acc, n| acc * n)
     }
 }
 

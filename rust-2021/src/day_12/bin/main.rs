@@ -12,18 +12,24 @@ struct Day12;
 type Graph = HashMap<Rc<Node>, HashSet<Rc<Node>>>;
 type Output = i32;
 
-#[derive(Eq, Hash, Clone, Debug)]
-struct Node(String);
-
-impl Node {
-    fn is_end(&self) -> bool { self.0.eq("end") }
-    fn is_start(&self) -> bool { self.0.eq("start") }
-    fn is_repeatable(&self) -> bool { self.0.chars().all(|c| c.is_uppercase() ) }
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+enum Node {
+    Start, End, Big(String), Small(String)
 }
 
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
+impl Node {
+    fn from(s: &str) -> Self {
+        return if s.eq("start") {
+            Node::Start
+        } else if s.eq("end") {
+            Node::End
+        } else if s.to_string().chars().all(|c| c.is_lowercase()) {
+            Node::Small(s.to_string())
+        } else if s.to_string().chars().all(|c| c.is_uppercase()) {
+            Node::Big(s.to_string())
+        } else {
+            panic!("invalid input");
+        }
     }
 }
 
@@ -33,31 +39,36 @@ impl Day12 {
         let mut paths = vec![];
 
         let mut stack = vec![];
-        stack.push((vec![Rc::new(Node("start".to_string()))], false));
+        stack.push((vec![Rc::new(Node::Start)], false));
 
         while let Some((path, hit_limit)) = stack.pop() {
             let node = &path[path.len() - 1];
             let child_nodes = &nodes[node];
             for child in child_nodes {
-                if child.is_end() {
-                    let mut end_path = path.clone();
-                    end_path.push(child.clone());
-                    paths.push(end_path);
-                } else if child.is_repeatable() {
-                    let mut branch = path.clone();
-                    branch.push(child.clone());
-                    stack.push((branch, hit_limit));
-                } else if child.is_start() {
-                    continue;
-                } else {
-                    if hit_limit && path.contains(&child) { continue; }
-                    let would_hit_limit = path.iter()
-                        .filter(|n| n.eq(&child))
-                        .count() + 1 == limit;
+                match child.as_ref() {
+                    Node::End => {
+                        let mut end_path = path.clone();
+                        end_path.push(child.clone());
+                        paths.push(end_path);
+                    },
+                    Node::Start => continue,
+                    Node::Big(val) => {
+                        let mut branch = path.clone();
+                        branch.push(child.clone());
+                        stack.push((branch, hit_limit));
+                    },
+                    Node::Small(val) => {
+                        if hit_limit && path.contains(&child) { continue; }
+                        let would_hit_limit = if hit_limit { hit_limit } else {
+                            path.iter()
+                            .filter(|n| n.eq(&child))
+                            .count() + 1 >= limit
+                        };
 
-                    let mut branch = path.clone();
-                    branch.push(child.clone());
-                    stack.push((branch, would_hit_limit || hit_limit));
+                        let mut branch = path.clone();
+                        branch.push(child.clone());
+                        stack.push((branch, would_hit_limit ));
+                    }
                 }
             }
         }
@@ -72,13 +83,13 @@ impl Puzzle<Graph, Output> for Day12 {
         for line in contents {
             let split = line.split('-').collect::<Vec<&str>>();
 
-            connections.entry(Rc::new(Node(split[0].to_string())))
+            connections.entry(Rc::new(Node::from(split[0])))
                 .or_insert(HashSet::new())
-                .insert(Rc::new(Node(split[1].to_string())));
+                .insert(Rc::new(Node::from(split[1])));
 
-            connections.entry(Rc::new(Node(split[1].to_string())))
+            connections.entry(Rc::new(Node::from(split[1])))
                 .or_insert(HashSet::new())
-                .insert(Rc::new(Node(split[0].to_string())));
+                .insert(Rc::new(Node::from(split[0])));
         }
 
         Ok(connections)

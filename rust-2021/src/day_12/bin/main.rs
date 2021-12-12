@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::rc::Rc;
 use aoc_utils::{Puzzle, run_all};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -8,7 +9,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 struct Day12;
 
-type Graph = HashMap<Node, HashSet<Node>>;
+type Graph = HashMap<Rc<Node>, HashSet<Rc<Node>>>;
 type Output = i32;
 
 #[derive(Eq, Hash, Clone, Debug)]
@@ -28,11 +29,11 @@ impl PartialEq for Node {
 
 impl Day12 {
 
-    fn traverse(&self, nodes: &Graph, limit: usize) -> Vec<Vec<Node>> {
+    fn traverse(&self, nodes: &Graph, limit: usize) -> Vec<Vec<Rc<Node>>> {
         let mut paths = vec![];
 
         let mut stack = vec![];
-        stack.push((vec![Node("start".to_string())], false));
+        stack.push((vec![Rc::new(Node("start".to_string()))], false));
 
         while let Some((path, hit_limit)) = stack.pop() {
             let node = &path[path.len() - 1];
@@ -71,11 +72,13 @@ impl Puzzle<Graph, Output> for Day12 {
         for line in contents {
             let split = line.split('-').collect::<Vec<&str>>();
 
-            let entry = connections.entry(Node(split[0].to_string())).or_insert(HashSet::new());
-            entry.insert(Node(split[1].to_string()));
+            connections.entry(Rc::new(Node(split[0].to_string())))
+                .or_insert(HashSet::new())
+                .insert(Rc::new(Node(split[1].to_string())));
 
-            let entry = connections.entry(Node(split[1].to_string())).or_insert(HashSet::new());
-            entry.insert(Node(split[0].to_string()));
+            connections.entry(Rc::new(Node(split[1].to_string())))
+                .or_insert(HashSet::new())
+                .insert(Rc::new(Node(split[0].to_string())));
         }
 
         Ok(connections)

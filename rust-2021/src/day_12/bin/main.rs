@@ -28,7 +28,7 @@ impl PartialEq for Node {
 
 impl Day12 {
 
-    fn traverse(&self, nodes: &Graph) -> Vec<Vec<Node>> {
+    fn traverse(&self, nodes: &Graph, limit: usize) -> Vec<Vec<Node>> {
         let mut paths = vec![];
 
         let mut stack = vec![];
@@ -46,9 +46,21 @@ impl Day12 {
                     let mut branch = path.clone();
                     branch.push(child.clone());
                     stack.push(branch);
-                } else if path.contains(&&child) || child.is_start() {
+                } else if child.is_start() {
                     continue;
                 } else {
+                    let any_on_limit = path.iter()
+                        .filter(|node| !node.is_repeatable())
+                        .fold(HashMap::<Node, usize>::new(), |mut m, x| {
+                            *m.entry(x.clone()).or_default() += 1;
+                            m
+                        }).iter()
+                        .any(|(_key, value)| value == &limit);
+
+                    if any_on_limit && path.contains(&child) {
+                        continue;
+                    }
+
                     let mut branch = path.clone();
                     branch.push(child.clone());
                     stack.push(branch);
@@ -77,11 +89,11 @@ impl Puzzle<Graph, Output> for Day12 {
     }
 
     fn calculate_part_1(&self, input: &Graph) -> Output {
-        self.traverse(input).len() as i32
+        self.traverse(input, 1).len() as i32
     }
 
     fn calculate_part_2(&self, input: &Graph) -> Output {
-        0
+        self.traverse(input, 2).len() as i32
     }
 }
 
@@ -109,8 +121,20 @@ mod test {
     }
 
     #[test]
-    fn test_part_two() -> Result<(), Box<dyn Error>> {
-        assert_eq!(0, run_part_two("./inputs/day_12_test.in", Box::new(Day12 { }))?);
+    fn test_part_two_example_1() -> Result<(), Box<dyn Error>> {
+        assert_eq!(36, run_part_two("./inputs/day_12_test.in", Box::new(Day12 { }))?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part_two_example_2() -> Result<(), Box<dyn Error>> {
+        assert_eq!(103, run_part_two("./inputs/day_12_test_1.in", Box::new(Day12 { }))?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_part_two_example_3() -> Result<(), Box<dyn Error>> {
+        assert_eq!(3509, run_part_two("./inputs/day_12_test_2.in", Box::new(Day12 { }))?);
         Ok(())
     }
 

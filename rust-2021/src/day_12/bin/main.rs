@@ -32,9 +32,9 @@ impl Day12 {
         let mut paths = vec![];
 
         let mut stack = vec![];
-        stack.push(vec![Node("start".to_string())]);
+        stack.push((vec![Node("start".to_string())], false));
 
-        while let Some(path) = stack.pop() {
+        while let Some((path, hit_limit)) = stack.pop() {
             let node = &path[path.len() - 1];
             let child_nodes = &nodes[node];
             for child in child_nodes {
@@ -45,25 +45,18 @@ impl Day12 {
                 } else if child.is_repeatable() {
                     let mut branch = path.clone();
                     branch.push(child.clone());
-                    stack.push(branch);
+                    stack.push((branch, hit_limit));
                 } else if child.is_start() {
                     continue;
                 } else {
-                    let any_on_limit = path.iter()
-                        .filter(|node| !node.is_repeatable())
-                        .fold(HashMap::<Node, usize>::new(), |mut m, x| {
-                            *m.entry(x.clone()).or_default() += 1;
-                            m
-                        }).iter()
-                        .any(|(_key, value)| value == &limit);
-
-                    if any_on_limit && path.contains(&child) {
-                        continue;
-                    }
+                    if hit_limit && path.contains(&child) { continue; }
+                    let would_hit_limit = path.iter()
+                        .filter(|n| n.eq(&child))
+                        .count() + 1 == limit;
 
                     let mut branch = path.clone();
                     branch.push(child.clone());
-                    stack.push(branch);
+                    stack.push((branch, would_hit_limit || hit_limit));
                 }
             }
         }

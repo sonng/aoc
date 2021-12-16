@@ -9,11 +9,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 struct Day16;
 
 type Input = Packet;
-type Output = i32;
+type Output = u64;
 
 #[derive(PartialEq, Debug)]
 enum PacketBody {
-    Literal(u16),
+    Literal(u64),
     Operation(Vec<Packet>)
 }
 
@@ -25,7 +25,7 @@ struct Packet {
 }
 
 impl Packet {
-    fn literal(header: u8, literal: u16) -> Self {
+    fn literal(header: u8, literal: u64) -> Self {
         Packet { version: header >> 3, packet_type: header & 0b111, body: PacketBody::Literal(literal) }
     }
 
@@ -72,8 +72,8 @@ fn convert_bits_to_header(bits: &str) -> u8 {
     u8::from_str_radix(&bits[..], 2).unwrap()
 }
 
-fn convert_bits_to_u16(bits: &str) -> u16 {
-    u16::from_str_radix(&bits[..], 2).unwrap()
+fn convert_bits_to_literal_num(bits: &str) -> u64 {
+    u64::from_str_radix(&bits[..], 2).unwrap()
 }
 
 fn parse_literal(bits: &str, cur: usize) -> (PacketBody, usize) {
@@ -88,14 +88,14 @@ fn parse_literal(bits: &str, cur: usize) -> (PacketBody, usize) {
         if should_break { break; }
     }
 
-    (PacketBody::Literal(convert_bits_to_u16(bit_string.as_str())), i)
+    (PacketBody::Literal(convert_bits_to_literal_num(bit_string.as_str())), i)
 }
 
 fn convert_bits_to_operations(bits: &str, cur: usize) -> (PacketBody, usize) {
     let length_type = &bits[cur..cur+1];
 
     if length_type == "0" {
-        let length = convert_bits_to_u16(&bits[cur+1..cur+16]) as usize;
+        let length = convert_bits_to_literal_num(&bits[cur+1..cur+16]) as usize;
         let mut cur = cur+16; // we've read the length
         let end =  cur + length;
         let mut packets = vec![];
@@ -106,7 +106,7 @@ fn convert_bits_to_operations(bits: &str, cur: usize) -> (PacketBody, usize) {
         }
         (PacketBody::Operation(packets), cur)
     } else {
-        let length = convert_bits_to_u16(&bits[cur+1..cur+12]) as usize;
+        let length = convert_bits_to_literal_num(&bits[cur+1..cur+12]) as usize;
         let mut cur = cur+12;
         let mut packets = vec![];
         for i in 0..length {
@@ -127,11 +127,13 @@ fn convert_bits_to_body(packet_type: u8, bits: &str, cur: usize) -> (PacketBody,
 
 impl Puzzle<Input, Output> for Day16 {
     fn parse(&self, contents: Vec<String>) -> Result<Input, Box<dyn Error>> {
-        todo!()
+        let bits = convert_hex_to_bits(contents[0].as_str()).unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        Ok(packet)
     }
 
     fn calculate_part_1(&self, input: &Input) -> Output {
-        todo!()
+        input.sum_of_versions()
     }
 
     fn calculate_part_2(&self, input: &Input) -> Output {

@@ -48,17 +48,17 @@ fn convert_hex_to_bits(str: &str) -> Result<String, Box<dyn Error>> {
 }
 
 fn convert_bit_string_to_packets(bits: String) -> Packet {
-    convert_bits_to_packet(bits.as_str())
+    parse_packet(bits.as_str(), 0).0
 }
 
-fn convert_bits_to_packet(bits: &str) -> Packet {
-    let header = convert_bits_to_header(&bits[0..6]);
+fn parse_packet(bits: &str, cur: usize) -> (Packet, usize) {
+    let header = convert_bits_to_header(&bits[cur..cur+6]);
 
     let version = header >> 3;
     let packet_type = header & 0b111;
-    let body = convert_bits_to_body(packet_type, &bits[6..]);
+    let (body, read_up_to) = convert_bits_to_body(packet_type, &bits, cur+6);
 
-    Packet::from(version, packet_type, body)
+    (Packet::from(version, packet_type, body), read_up_to)
 }
 
 fn convert_bits_to_header(bits: &str) -> u8 {
@@ -69,28 +69,45 @@ fn convert_bits_to_u16(bits: &str) -> u16 {
     u16::from_str_radix(&bits[..], 2).unwrap()
 }
 
-fn convert_bits_to_literal(bits: &str) -> PacketBody {
+fn parse_literal(bits: &str, cur: usize) -> (PacketBody, usize) {
     let mut bit_string = String::new();
-    let mut i = 0;
+    let mut i = cur;
     while i < bits.len() {
         bit_string.push_str(&bits[i+1..i+5]);
 
-        if &bits[i..i+1] == "0" { break; }
-
+        let should_break = &bits[i..i+1] == "0";
         i += 5;
+
+        if should_break { break; }
     }
 
-    PacketBody::Literal(convert_bits_to_u16(bit_string.as_str()))
+    (PacketBody::Literal(convert_bits_to_u16(bit_string.as_str())), i)
 }
 
-fn convert_bits_to_operations(bits: &str) -> PacketBody {
-    todo!()
+fn convert_bits_to_operations(bits: &str, cur: usize) -> (PacketBody, usize) {
+    let length_type = &bits[cur..cur+1];
+
+    if length_type == "0" {
+        let length = convert_bits_to_u16(&bits[cur+1..cur+16]) as usize;
+        let mut cur = cur+16; // we've read the length
+        let end =  cur + length;
+        let mut packets = vec![];
+        while cur < end {
+            let (packet, read) = parse_packet(bits, cur);
+            packets.push(packet);
+            cur = read;
+        }
+        (PacketBody::Operation(packets), cur)
+    } else {
+        let length = convert_bits_to_u16(&bits[cur+1..cur+12]) as usize;
+        todo!()
+    }
 }
 
-fn convert_bits_to_body(packet_type: u8, bits: &str) -> PacketBody {
+fn convert_bits_to_body(packet_type: u8, bits: &str, cur: usize) -> (PacketBody, usize) {
     match packet_type {
-        4 => convert_bits_to_literal(bits),
-        _ => convert_bits_to_operations(bits)
+        4 => parse_literal(bits, cur),
+        _ => convert_bits_to_operations(bits, cur)
     }
 }
 

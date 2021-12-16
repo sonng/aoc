@@ -100,7 +100,14 @@ fn convert_bits_to_operations(bits: &str, cur: usize) -> (PacketBody, usize) {
         (PacketBody::Operation(packets), cur)
     } else {
         let length = convert_bits_to_u16(&bits[cur+1..cur+12]) as usize;
-        todo!()
+        let mut cur = cur+12;
+        let mut packets = vec![];
+        for i in 0..length {
+            let (packet, read) = parse_packet(bits, cur);
+            packets.push(packet);
+            cur = read;
+        }
+        (PacketBody::Operation(packets), cur)
     }
 }
 

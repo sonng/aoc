@@ -36,6 +36,13 @@ impl Packet {
     fn from(version: u8, packet_type: u8, body: PacketBody) -> Self {
         Packet { version, packet_type, body }
     }
+
+    fn sum_of_versions(&self) -> u64 {
+        (self.version as u64) + match &self.body {
+            PacketBody::Literal(_) => 0,
+            PacketBody::Operation(packets) => packets.iter().map(|p| p.sum_of_versions()).sum()
+        }
+    }
 }
 
 fn convert_hex_to_bits(str: &str) -> Result<String, Box<dyn Error>> {
@@ -167,6 +174,34 @@ mod test {
         let bits = convert_hex_to_bits("D2FE28").unwrap();
         let packet = convert_bit_string_to_packets(bits);
         assert_eq!(packet, Packet::literal(0b110100, 2021));
+    }
+
+    #[test]
+    fn test_sum_of_versions_1() {
+        let bits = convert_hex_to_bits("8A004A801A8002F478").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(16, packet.sum_of_versions())
+    }
+
+    #[test]
+    fn test_sum_of_versions_2() {
+        let bits = convert_hex_to_bits("620080001611562C8802118E34").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(12, packet.sum_of_versions())
+    }
+
+    #[test]
+    fn test_sum_of_versions_3() {
+        let bits = convert_hex_to_bits("C0015000016115A2E0802F182340").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(23, packet.sum_of_versions())
+    }
+
+    #[test]
+    fn test_sum_of_versions_4() {
+        let bits = convert_hex_to_bits("A0016C880162017C3686B18A3D4780").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(31, packet.sum_of_versions())
     }
 
     #[test]

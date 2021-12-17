@@ -44,8 +44,8 @@ impl PacketBody {
             PacketBody::Equal(p) => if p[0].value() == p[1].value() { 1 } else { 0 },
             PacketBody::LessThan(p) => if p[0].value() < p[1].value() { 1 } else { 0 },
             PacketBody::GreaterThan(p) => if p[0].value() > p[1].value() { 1 } else { 0 },
-            PacketBody::Maximum(p) => p.iter().map(|p| p.value()).max().unwrap(),
-            PacketBody::Minimum(p) => p.iter().map(|p| p.value()).min().unwrap(),
+            PacketBody::Maximum(p) => p.iter().map(|p| p.value()).max().unwrap_or_default(),
+            PacketBody::Minimum(p) => p.iter().map(|p| p.value()).min().unwrap_or_default(),
             PacketBody::Product(p) => p.iter().map(|p| p.value()).product(),
             PacketBody::Sum(p) => p.iter().map(|p| p.value()).sum()
         }

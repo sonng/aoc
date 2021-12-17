@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::u8;
 use aoc_utils::{Puzzle, run_all};
+use crate::PacketBody::Literal;
 
 fn main() -> Result<(), Box<dyn Error>> {
     run_all("./rust-2021/inputs/day_16.in", Box::new(Day16))
@@ -14,7 +15,60 @@ type Output = u64;
 #[derive(PartialEq, Debug)]
 enum PacketBody {
     Literal(u64),
-    Operation(Vec<Packet>)
+    Sum(Vec<Packet>),
+    Product(Vec<Packet>),
+    Minimum(Vec<Packet>),
+    Maximum(Vec<Packet>),
+    GreaterThan(Vec<Packet>),
+    LessThan(Vec<Packet>),
+    Equal(Vec<Packet>)
+}
+
+impl PacketBody {
+    fn from(packet_type: u8, packets: Vec<Packet>) -> Self {
+        match packet_type {
+            0 => PacketBody::Sum(packets),
+            1 => PacketBody::Product(packets),
+            2 => PacketBody::Minimum(packets),
+            3 => PacketBody::Maximum(packets),
+            5 => PacketBody::GreaterThan(packets),
+            6 => PacketBody::LessThan(packets),
+            7 => PacketBody::Equal(packets),
+            _ => panic!("unknown operator")
+        }
+    }
+
+    fn value(&self) -> u64 {
+        match self {
+            PacketBody::Literal(v) => v.clone(),
+            PacketBody::Equal(p) => if p[0].value() == p[1].value() { 1 } else { 0 },
+            PacketBody::LessThan(p) => if p[0].value() < p[1].value() { 1 } else { 0 },
+            PacketBody::GreaterThan(p) => if p[0].value() > p[1].value() { 1 } else { 0 },
+            PacketBody::Maximum(p) => p.iter().map(|p| p.value()).max().unwrap(),
+            PacketBody::Minimum(p) => p.iter().map(|p| p.value()).min().unwrap(),
+            PacketBody::Product(p) => p.iter().map(|p| p.value()).product(),
+            PacketBody::Sum(p) => p.iter().map(|p| p.value()).sum()
+        }
+    }
+
+    fn sum_of_versions(&self) -> u64 {
+        if let Literal(_) = self {
+            return 0;
+        }
+
+        let packets = match &self {
+            PacketBody::Sum(packets) => packets,
+            PacketBody::Product(packets) => packets,
+            PacketBody::Minimum(packets) => packets,
+            PacketBody::Maximum(packets) => packets,
+            PacketBody::GreaterThan(packets) => packets,
+            PacketBody::LessThan(packets) => packets,
+            PacketBody::Equal(packets) => packets,
+            _ => panic!("it shouldn't go here")
+        };
+
+        packets.iter().map(|p| p.sum_of_versions()).sum()
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -30,7 +84,7 @@ impl Packet {
     }
 
     fn operation(header: u8, packets: Vec<Packet>) -> Self {
-        Packet { version: header >> 3, packet_type: header & 0b111, body: PacketBody::Operation(packets) }
+        Packet { version: header >> 3, packet_type: header & 0b111, body: PacketBody::from(header & 0b111, packets) }
     }
 
     fn from(version: u8, packet_type: u8, body: PacketBody) -> Self {
@@ -38,10 +92,11 @@ impl Packet {
     }
 
     fn sum_of_versions(&self) -> u64 {
-        (self.version as u64) + match &self.body {
-            PacketBody::Literal(_) => 0,
-            PacketBody::Operation(packets) => packets.iter().map(|p| p.sum_of_versions()).sum()
-        }
+        (self.version as u64) + &self.body.sum_of_versions()
+    }
+
+    fn value(&self) -> u64 {
+        self.body.value()
     }
 }
 
@@ -91,7 +146,7 @@ fn parse_literal(bits: &str, cur: usize) -> (PacketBody, usize) {
     (PacketBody::Literal(convert_bits_to_literal_num(bit_string.as_str())), i)
 }
 
-fn convert_bits_to_operations(bits: &str, cur: usize) -> (PacketBody, usize) {
+fn convert_bits_to_operations(bits: &str, packet_type: u8, cur: usize) -> (PacketBody, usize) {
     let length_type = &bits[cur..cur+1];
 
     if length_type == "0" {
@@ -104,24 +159,24 @@ fn convert_bits_to_operations(bits: &str, cur: usize) -> (PacketBody, usize) {
             packets.push(packet);
             cur = read;
         }
-        (PacketBody::Operation(packets), cur)
+        (PacketBody::from(packet_type, packets), cur)
     } else {
         let length = convert_bits_to_literal_num(&bits[cur+1..cur+12]) as usize;
         let mut cur = cur+12;
         let mut packets = vec![];
-        for i in 0..length {
+        for _ in 0..length {
             let (packet, read) = parse_packet(bits, cur);
             packets.push(packet);
             cur = read;
         }
-        (PacketBody::Operation(packets), cur)
+        (PacketBody::from(packet_type, packets), cur)
     }
 }
 
 fn convert_bits_to_body(packet_type: u8, bits: &str, cur: usize) -> (PacketBody, usize) {
     match packet_type {
         4 => parse_literal(bits, cur),
-        _ => convert_bits_to_operations(bits, cur)
+        _ => convert_bits_to_operations(bits, packet_type, cur)
     }
 }
 
@@ -137,13 +192,12 @@ impl Puzzle<Input, Output> for Day16 {
     }
 
     fn calculate_part_2(&self, input: &Input) -> Output {
-        todo!()
+        input.value()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use aoc_utils::{run_part_one, run_part_two};
     use super::*;
 
     #[test]
@@ -207,6 +261,62 @@ mod test {
     }
 
     #[test]
+    fn test_process_example_sum() {
+        let bits = convert_hex_to_bits("C200B40A82").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(3, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_product() {
+        let bits = convert_hex_to_bits("04005AC33890").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(54, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_minimum() {
+        let bits = convert_hex_to_bits("880086C3E88112").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(7, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_maximum() {
+        let bits = convert_hex_to_bits("CE00C43D881120").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(9, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_less_than() {
+        let bits = convert_hex_to_bits("D8005AC2A8F0").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(1, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_greater_than() {
+        let bits = convert_hex_to_bits("F600BC2D8F").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(0, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_equal() {
+        let bits = convert_hex_to_bits("9C005AC2F8F0").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(0, packet.value())
+    }
+
+    #[test]
+    fn test_process_example_equal_combine() {
+        let bits = convert_hex_to_bits("9C0141080250320F1802104A08").unwrap();
+        let packet = convert_bit_string_to_packets(bits);
+        assert_eq!(1, packet.value())
+    }
+
+    #[test]
     fn test_conversion_1() {
         assert_eq!(convert_hex_to_bits("D2FE28").unwrap(), "110100101111111000101000");
     }
@@ -214,17 +324,5 @@ mod test {
     #[test]
     fn test_conversion_2() {
         assert_eq!(convert_hex_to_bits("38006F45291200").unwrap(), "00111000000000000110111101000101001010010001001000000000");
-    }
-
-    #[test]
-    fn test_calculate_one() -> Result<(), Box<dyn Error>> {
-        assert_eq!(0, run_part_one("./inputs/day_16_test.in", Box::new(Day16))?);
-        Ok(())
-    }
-
-    #[test]
-    fn test_calculate_two() -> Result<(), Box<dyn Error>> {
-        assert_eq!(0, run_part_two("./inputs/day_16_test.in", Box::new(Day16))?);
-        Ok(())
     }
 }

@@ -68,18 +68,62 @@ fn parse_str_to_tree(s: &str, cur: usize) -> (Option<Box<Node>>, usize) {
         let (node, cur) = parse_str_to_tree(s, cur + 1);
         (node, cur)
     } else {
-        let value = cur_read_str.parse::<i64>().unwrap();
-        (Node::new_child_value(value), cur + 1)
+        let mut peek = cur;
+        for i in 0..s.len() {
+            let peek_str = &s[peek..peek+1];
+            if peek_str == "[" || peek_str == "," || peek_str == "]" {
+                break;
+            }
+            peek += 1;
+        }
+        let value = (&s[cur..peek]).parse::<i64>().unwrap();
+        (Node::new_child_value(value), peek)
     }
 }
 
 fn process(node: ChildNode) -> ChildNode {
-    process_inner(node, 0).0
+    let after_explode = try_explode(node, 0);
+
+    if let Some(_) = after_explode.1 {
+        return after_explode.0;
+    } else {
+        try_split(after_explode.0).0
+    }
+}
+
+fn try_split(node: ChildNode) -> (ChildNode, bool) {
+    let mut splitted = false;
+    (node.and_then(|n| {
+        match n.kind {
+            Branch => {
+                let try_left = try_split(n.left);
+
+                if try_left.1 {
+                    splitted = true;
+                    return Node::new_node(try_left.0, n.right)
+                }
+
+                let try_right = try_split(n.right);
+                splitted = try_right.1;
+                Node::new_node(try_left.0, try_right.0)
+            },
+            Value(i) if i > 9 => {
+                let divide = i as f64 / 2.0;
+                let left = divide.floor() as i64;
+                let right = divide.ceil() as i64;
+
+                splitted = true;
+
+                Node::new_node(Node::new_child_value(left), Node::new_child_value(right))
+            },
+            Value(_) => Some(n)
+        }
+    }), splitted)
 }
 
 type Explosion = Option<(Option<i64>, Option<i64>)>;
 
-fn process_inner(node: ChildNode, level: usize) -> (ChildNode, Explosion) {
+fn try_explode(node: ChildNode, level: usize) -> (ChildNode, Explosion) {
     let mut explosion = None;
     (node.and_then(|mut n| {
         match n.kind {
@@ -93,23 +137,23 @@ fn process_inner(node: ChildNode, level: usize) -> (ChildNode, Explosion) {
 
                     Node::new_child_value(0)
                 } else {
-                    let process_left = process_inner(n.left, level + 1);
+                    let process_left = try_explode(n.left, level + 1);
                     let left = process_left.0;
                     let left_explosion = process_left.1;
 
                     if let Some((ex_left, ex_right)) = left_explosion {
-                        let right = process_and_find_most_left(n.right, ex_right);
+                        let right = find_and_add_most_left(n.right, ex_right);
                         explosion = Some((ex_left, None));
 
                         return Node::new_node(left, right);
                     }
 
-                    let process_right = process_inner(n.right, level + 1);
+                    let process_right = try_explode(n.right, level + 1);
                     let right = process_right.0;
                     let right_explosion = process_right.1;
 
                     if let Some((ex_left, ex_right)) = right_explosion {
-                        let left = process_and_find_most_right(left, ex_left);
+                        let left = find_and_add_most_right(left, ex_left);
                         explosion = Some((None, ex_right));
 
                         return Node::new_node(left, right);
@@ -122,7 +166,7 @@ fn process_inner(node: ChildNode, level: usize) -> (ChildNode, Explosion) {
     }), explosion)
 }
 
-fn process_and_find_most_right(node: ChildNode, explosion: Option<i64>) -> ChildNode {
+fn find_and_add_most_right(node: ChildNode, explosion: Option<i64>) -> ChildNode {
     match explosion {
         None => node,
         Some(explode_value) => {
@@ -130,7 +174,7 @@ fn process_and_find_most_right(node: ChildNode, explosion: Option<i64>) -> Child
                 match n.kind {
                     Value(i) => Node::new_child_value(i + explode_value),
                     Branch => {
-                        let right = process_and_find_most_right(n.right, Some(explode_value));
+                        let right = find_and_add_most_right(n.right, Some(explode_value));
                         Node::new_node(n.left, right)
                     }
                 }
@@ -139,14 +183,14 @@ fn process_and_find_most_right(node: ChildNode, explosion: Option<i64>) -> Child
     }
 }
 
-fn process_and_find_most_left(node: ChildNode, explosion: Option<i64>) -> ChildNode {
+fn find_and_add_most_left(node: ChildNode, explosion: Option<i64>) -> ChildNode {
     match explosion {
         Some(explode_value) => {
             node.and_then(|n| {
                 match n.kind {
                     Value(i) => Node::new_child_value(i + explode_value),
                     Branch => {
-                        let left = process_and_find_most_left(n.left, Some(explode_value));
+                        let left = find_and_add_most_left(n.left, Some(explode_value));
                         Node::new_node(left, n.right)
                     }
                 }
@@ -320,6 +364,52 @@ mod test {
         assert_eq!(post_explosion, action);
     }
 
+
+    #[test]
+    fn test_split_simple() {
+        let pre_split = parse_str_to_tree("[10,1]", 0).0;
+        let post_split = parse_str_to_tree("[[5,5],1]", 0).0;
+        let action = process(pre_split);
+        assert_eq!(post_split, action);
+    }
+
+    #[test]
+    fn test_split_one_at_a_time() {
+        let pre_split = parse_str_to_tree("[10,10]", 0).0;
+
+        let first_split = parse_str_to_tree("[[5,5],10]", 0).0;
+        let action = process(pre_split);
+        assert_eq!(first_split, action);
+
+        let second_split = parse_str_to_tree("[[5,5],[5,5]]", 0).0;
+        let action = process(action);
+        assert_eq!(second_split, action);
+    }
+
+    #[test]
+    fn test_sequence() {
+        let pre_loop = parse_str_to_tree("[[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]", 0).0;
+
+        let step_1 = parse_str_to_tree("[[[[0,7],4],[7,[[8,4],9]]],[1,1]]", 0).0;
+        let mut action = process(pre_loop);
+        assert_eq!(step_1, action);
+
+        let step_2 = parse_str_to_tree("[[[[0,7],4],[15,[0,13]]],[1,1]]", 0).0;
+        action = process(action);
+        assert_eq!(step_2, action);
+
+        let step_3 = parse_str_to_tree("[[[[0,7],4],[[7,8],[0,13]]],[1,1]]", 0).0;
+        action = process(action);
+        assert_eq!(step_3, action);
+
+        let step_4 = parse_str_to_tree("[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]", 0).0;
+        action = process(action);
+        assert_eq!(step_4, action);
+
+        let step_5 = parse_str_to_tree("[[[[0,7],4],[[7,8],[6,0]]],[8,1]]", 0).0;
+        action = process(action);
+        assert_eq!(step_5, action);
+    }
 
     fn test_calculate_one() -> Result<(), Box<dyn Error>> {
         assert_eq!(0, run_part_one("./inputs/day_18_test.in", Box::new(Day18))?);

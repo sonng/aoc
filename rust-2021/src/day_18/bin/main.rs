@@ -8,10 +8,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 struct Day18;
 
-type Input = Node;
+type Input = Vec<ChildNode>;
 type Output = i64;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum NodeKind {
     Value(i64),
     Branch
@@ -19,7 +19,7 @@ enum NodeKind {
 
 type ChildNode = Option<Box<Node>>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Node {
     left: ChildNode,
     right: ChildNode,
@@ -100,6 +100,22 @@ fn calc_magnitude(node: ChildNode) -> i64 {
 
 fn add(left: ChildNode, right: ChildNode) -> ChildNode {
     Node::new_node(left, right)
+}
+
+fn add_and_reduce(left: ChildNode, right: ChildNode) -> ChildNode {
+    let mut initial = add(left, right);
+
+    loop {
+        let try_process = process(initial);
+
+        initial = try_process.0;
+
+        if try_process.1 == false {
+            break;
+        }
+    }
+
+    initial
 }
 
 fn process(node: ChildNode) -> (ChildNode, bool) {
@@ -223,11 +239,31 @@ fn find_and_add_most_left(node: ChildNode, explosion: Option<i64>) -> ChildNode 
 
 impl Puzzle<Input, Output> for Day18 {
     fn parse(&self, contents: Vec<String>) -> Result<Input, Box<dyn Error>> {
-        todo!()
+        Ok(contents.iter()
+            .map(|s| parse_str_to_tree(&s[..], 0).0)
+               .collect())
     }
 
     fn calculate_part_1(&self, input: &Input) -> Output {
-        todo!()
+        let mut input = input.clone();
+        let mut initial = input[0].take();
+
+        for i in 1..input.len() {
+            let right = input[i].take();
+            initial = add(initial, right);
+
+            loop {
+                let try_process = process(initial.take());
+
+                initial = try_process.0;
+
+                if try_process.1 == false {
+                    break;
+                }
+            }
+        }
+
+        calc_magnitude(initial)
     }
 
     fn calculate_part_2(&self, input: &Input) -> Output {
@@ -468,8 +504,99 @@ mod test {
         assert_eq!(3488, calc_magnitude(tree));
     }
 
+    #[test]
+    fn test_final_sum_1() {
+        let left = parse_str_to_tree("[[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]", 0).0;
+        let right = parse_str_to_tree("[7,[[[3,7],[4,3]],[[6,3],[8,8]]]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_2() {
+        let left = parse_str_to_tree("[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]", 0).0;
+        let right = parse_str_to_tree("[[2,[[0,8],[3,4]]],[[[6,7],1],[7,[1,6]]]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[6,7],[6,7]],[[7,7],[0,7]]],[[[8,7],[7,7]],[[8,8],[8,0]]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_3() {
+        let left = parse_str_to_tree("[[[[6,7],[6,7]],[[7,7],[0,7]]],[[[8,7],[7,7]],[[8,8],[8,0]]]]", 0).0;
+        let right = parse_str_to_tree("[[[[2,4],7],[6,[0,5]]],[[[6,8],[2,8]],[[2,1],[4,5]]]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[7,0],[7,7]],[[7,7],[7,8]]],[[[7,7],[8,8]],[[7,7],[8,7]]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_4() {
+        let left = parse_str_to_tree("[[[[7,0],[7,7]],[[7,7],[7,8]]],[[[7,7],[8,8]],[[7,7],[8,7]]]]", 0).0;
+        let right = parse_str_to_tree("[7,[5,[[3,8],[1,4]]]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[7,7],[7,8]],[[9,5],[8,7]]],[[[6,8],[0,8]],[[9,9],[9,0]]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_5() {
+        let left = parse_str_to_tree("[[[[7,7],[7,8]],[[9,5],[8,7]]],[[[6,8],[0,8]],[[9,9],[9,0]]]]", 0).0;
+        let right = parse_str_to_tree("[[2,[2,2]],[8,[8,1]]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[6,6],[6,6]],[[6,0],[6,7]]],[[[7,7],[8,9]],[8,[8,1]]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_6() {
+        let left = parse_str_to_tree("[[[[6,6],[6,6]],[[6,0],[6,7]]],[[[7,7],[8,9]],[8,[8,1]]]]", 0).0;
+        let right = parse_str_to_tree("[2,9]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[6,6],[7,7]],[[0,7],[7,7]]],[[[5,5],[5,6]],9]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_7() {
+        let left = parse_str_to_tree("[[[[6,6],[7,7]],[[0,7],[7,7]]],[[[5,5],[5,6]],9]]", 0).0;
+        let right = parse_str_to_tree("[1,[[[9,3],9],[[9,0],[0,7]]]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[7,8],[6,7]],[[6,8],[0,8]]],[[[7,7],[5,0]],[[5,5],[5,6]]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_8() {
+        let left = parse_str_to_tree("[[[[7,8],[6,7]],[[6,8],[0,8]]],[[[7,7],[5,0]],[[5,5],[5,6]]]]", 0).0;
+        let right = parse_str_to_tree("[[[5,[7,4]],7],1]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[7,7],[7,7]],[[8,7],[8,7]]],[[[7,0],[7,7]],9]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
+    fn test_final_sum_9() {
+        let left = parse_str_to_tree("[[[[7,7],[7,7]],[[8,7],[8,7]]],[[[7,0],[7,7]],9]]", 0).0;
+        let right = parse_str_to_tree("[[[[4,2],2],6],[8,7]]", 0).0;
+
+        let sum = parse_str_to_tree("[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]", 0).0;
+
+        assert_eq!(sum, add_and_reduce(left, right));
+    }
+
+    #[test]
     fn test_calculate_one() -> Result<(), Box<dyn Error>> {
-        assert_eq!(0, run_part_one("./inputs/day_18_test.in", Box::new(Day18))?);
+        assert_eq!(4140, run_part_one("./inputs/day_18_test.in", Box::new(Day18))?);
         Ok(())
     }
 

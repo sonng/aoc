@@ -109,7 +109,10 @@ fn process_inner(node: ChildNode, level: usize) -> (ChildNode, Explosion) {
                     let right_explosion = process_right.1;
 
                     if let Some((ex_left, ex_right)) = right_explosion {
-                        // Process Right Explosion
+                        let left = process_and_find_most_right(left, ex_left);
+                        explosion = Some((None, ex_right));
+
+                        return Node::new_node(left, right);
                     }
 
                     return Node::new_node(left, right);
@@ -117,6 +120,23 @@ fn process_inner(node: ChildNode, level: usize) -> (ChildNode, Explosion) {
             }
         }
     }), explosion)
+}
+
+fn process_and_find_most_right(node: ChildNode, explosion: Option<i64>) -> ChildNode {
+    match explosion {
+        None => node,
+        Some(explode_value) => {
+            node.and_then(|n| {
+                match n.kind {
+                    Value(i) => Node::new_child_value(i + explode_value),
+                    Branch => {
+                        let right = process_and_find_most_right(n.right, Some(explode_value));
+                        Node::new_node(n.left, right)
+                    }
+                }
+            })
+        }
+    }
 }
 
 fn process_and_find_most_left(node: ChildNode, explosion: Option<i64>) -> ChildNode {
@@ -261,9 +281,17 @@ mod test {
     }
 
     #[test]
-    fn test_explosion_1() {
+    fn test_explosion_left_most_explosion() {
         let pre_explosion = parse_str_to_tree("[[[[[9,8],1],2],3],4]", 0).0;
         let post_explosion = parse_str_to_tree("[[[[0,9],2],3],4]", 0).0;
+        let action = process(pre_explosion);
+        assert_eq!(post_explosion, action);
+    }
+
+    #[test]
+    fn test_explosion_right_most_explosion() {
+        let pre_explosion = parse_str_to_tree("[7,[6,[5,[4,[3,2]]]]]", 0).0;
+        let post_explosion = parse_str_to_tree("[7,[6,[5,[7,0]]]]", 0).0;
         let action = process(pre_explosion);
         assert_eq!(post_explosion, action);
     }

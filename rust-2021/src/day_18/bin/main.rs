@@ -296,6 +296,30 @@ mod test {
         assert_eq!(post_explosion, action);
     }
 
+    #[test]
+    fn test_explosion_somewhere_in_the_middle() {
+        let pre_explosion = parse_str_to_tree("[[6,[5,[4,[3,2]]]],1]", 0).0;
+        let post_explosion = parse_str_to_tree("[[6,[5,[7,0]]],3]", 0).0;
+        let action = process(pre_explosion);
+        assert_eq!(post_explosion, action);
+    }
+
+    #[test]
+    fn test_explosion_should_only_affect_left_not_right() {
+        let pre_explosion = parse_str_to_tree("[[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]", 0).0;
+        let post_explosion = parse_str_to_tree("[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]", 0).0;
+        let action = process(pre_explosion);
+        assert_eq!(post_explosion, action);
+    }
+
+    #[test]
+    fn test_explosion_random_example() {
+        let pre_explosion = parse_str_to_tree("[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]", 0).0;
+        let post_explosion = parse_str_to_tree("[[3,[2,[8,0]]],[9,[5,[7,0]]]]", 0).0;
+        let action = process(pre_explosion);
+        assert_eq!(post_explosion, action);
+    }
+
 
     fn test_calculate_one() -> Result<(), Box<dyn Error>> {
         assert_eq!(0, run_part_one("./inputs/day_18_test.in", Box::new(Day18))?);

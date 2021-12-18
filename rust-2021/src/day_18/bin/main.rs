@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::error::Error;
 use aoc_utils::{Puzzle, run_all};
 use crate::NodeKind::{Branch, Value};
@@ -250,24 +251,29 @@ impl Puzzle<Input, Output> for Day18 {
 
         for i in 1..input.len() {
             let right = input[i].take();
-            initial = add(initial, right);
-
-            loop {
-                let try_process = process(initial.take());
-
-                initial = try_process.0;
-
-                if try_process.1 == false {
-                    break;
-                }
-            }
+            initial = add_and_reduce(initial, right);
         }
 
         calc_magnitude(initial)
     }
 
     fn calculate_part_2(&self, input: &Input) -> Output {
-        todo!()
+        let mut amount = 0;
+        for i in 0..input.len() {
+            for j in i+1..input.len() {
+                let left = input[i].clone();
+                let right = input[j].clone();
+
+                let reduced = add_and_reduce(left.clone(), right.clone());
+                let left_amount = calc_magnitude(reduced);
+
+                let reduced = add_and_reduce(right.clone(), left.clone());
+                let right_amount = calc_magnitude(reduced);
+                amount = max(amount, max(left_amount, right_amount));
+            }
+        }
+
+        amount
     }
 }
 
@@ -421,6 +427,13 @@ mod test {
         assert_eq!(post_explosion, action);
     }
 
+    #[test]
+    fn test_star_2() {
+        let left = parse_str_to_tree("[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]", 0).0;
+        let right = parse_str_to_tree("[[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]", 0).0;
+        let sum = add_and_reduce(left, right);
+        assert_eq!(3993, calc_magnitude(sum));
+    }
 
     #[test]
     fn test_split_simple() {
@@ -600,8 +613,9 @@ mod test {
         Ok(())
     }
 
+    #[test]
     fn test_calculate_two() -> Result<(), Box<dyn Error>> {
-        assert_eq!(0, run_part_two("./inputs/day_18_test.in", Box::new(Day18))?);
+        assert_eq!(3993, run_part_two("./inputs/day_18_test.in", Box::new(Day18))?);
         Ok(())
     }
 }

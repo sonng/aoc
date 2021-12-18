@@ -81,13 +81,34 @@ fn parse_str_to_tree(s: &str, cur: usize) -> (Option<Box<Node>>, usize) {
     }
 }
 
-fn process(node: ChildNode) -> ChildNode {
+fn calc_magnitude(node: ChildNode) -> i64 {
+    match node {
+        None => 0,
+        Some(n) => {
+            match n.kind {
+                Value(i) => i,
+                Branch => {
+                    let left = 3 * calc_magnitude(n.left);
+                    let right = 2 * calc_magnitude(n.right);
+
+                    left + right
+                }
+            }
+        }
+    }
+}
+
+fn add(left: ChildNode, right: ChildNode) -> ChildNode {
+    Node::new_node(left, right)
+}
+
+fn process(node: ChildNode) -> (ChildNode, bool) {
     let after_explode = try_explode(node, 0);
 
     if let Some(_) = after_explode.1 {
-        return after_explode.0;
+        return (after_explode.0, true);
     } else {
-        try_split(after_explode.0).0
+        try_split(after_explode.0)
     }
 }
 
@@ -328,7 +349,7 @@ mod test {
     fn test_explosion_left_most_explosion() {
         let pre_explosion = parse_str_to_tree("[[[[[9,8],1],2],3],4]", 0).0;
         let post_explosion = parse_str_to_tree("[[[[0,9],2],3],4]", 0).0;
-        let action = process(pre_explosion);
+        let action = process(pre_explosion).0;
         assert_eq!(post_explosion, action);
     }
 
@@ -336,7 +357,7 @@ mod test {
     fn test_explosion_right_most_explosion() {
         let pre_explosion = parse_str_to_tree("[7,[6,[5,[4,[3,2]]]]]", 0).0;
         let post_explosion = parse_str_to_tree("[7,[6,[5,[7,0]]]]", 0).0;
-        let action = process(pre_explosion);
+        let action = process(pre_explosion).0;
         assert_eq!(post_explosion, action);
     }
 
@@ -344,7 +365,7 @@ mod test {
     fn test_explosion_somewhere_in_the_middle() {
         let pre_explosion = parse_str_to_tree("[[6,[5,[4,[3,2]]]],1]", 0).0;
         let post_explosion = parse_str_to_tree("[[6,[5,[7,0]]],3]", 0).0;
-        let action = process(pre_explosion);
+        let action = process(pre_explosion).0;
         assert_eq!(post_explosion, action);
     }
 
@@ -352,7 +373,7 @@ mod test {
     fn test_explosion_should_only_affect_left_not_right() {
         let pre_explosion = parse_str_to_tree("[[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]", 0).0;
         let post_explosion = parse_str_to_tree("[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]", 0).0;
-        let action = process(pre_explosion);
+        let action = process(pre_explosion).0;
         assert_eq!(post_explosion, action);
     }
 
@@ -360,7 +381,7 @@ mod test {
     fn test_explosion_random_example() {
         let pre_explosion = parse_str_to_tree("[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]", 0).0;
         let post_explosion = parse_str_to_tree("[[3,[2,[8,0]]],[9,[5,[7,0]]]]", 0).0;
-        let action = process(pre_explosion);
+        let action = process(pre_explosion).0;
         assert_eq!(post_explosion, action);
     }
 
@@ -369,7 +390,7 @@ mod test {
     fn test_split_simple() {
         let pre_split = parse_str_to_tree("[10,1]", 0).0;
         let post_split = parse_str_to_tree("[[5,5],1]", 0).0;
-        let action = process(pre_split);
+        let action = process(pre_split).0;
         assert_eq!(post_split, action);
     }
 
@@ -378,11 +399,11 @@ mod test {
         let pre_split = parse_str_to_tree("[10,10]", 0).0;
 
         let first_split = parse_str_to_tree("[[5,5],10]", 0).0;
-        let action = process(pre_split);
+        let action = process(pre_split).0;
         assert_eq!(first_split, action);
 
         let second_split = parse_str_to_tree("[[5,5],[5,5]]", 0).0;
-        let action = process(action);
+        let action = process(action).0;
         assert_eq!(second_split, action);
     }
 
@@ -391,24 +412,60 @@ mod test {
         let pre_loop = parse_str_to_tree("[[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]", 0).0;
 
         let step_1 = parse_str_to_tree("[[[[0,7],4],[7,[[8,4],9]]],[1,1]]", 0).0;
-        let mut action = process(pre_loop);
+        let mut action = process(pre_loop).0;
         assert_eq!(step_1, action);
 
         let step_2 = parse_str_to_tree("[[[[0,7],4],[15,[0,13]]],[1,1]]", 0).0;
-        action = process(action);
+        action = process(action).0;
         assert_eq!(step_2, action);
 
         let step_3 = parse_str_to_tree("[[[[0,7],4],[[7,8],[0,13]]],[1,1]]", 0).0;
-        action = process(action);
+        action = process(action).0;
         assert_eq!(step_3, action);
 
         let step_4 = parse_str_to_tree("[[[[0,7],4],[[7,8],[0,[6,7]]]],[1,1]]", 0).0;
-        action = process(action);
+        action = process(action).0;
         assert_eq!(step_4, action);
 
         let step_5 = parse_str_to_tree("[[[[0,7],4],[[7,8],[6,0]]],[8,1]]", 0).0;
-        action = process(action);
+        action = process(action).0;
         assert_eq!(step_5, action);
+    }
+
+    #[test]
+    fn test_magnitude_example_1() {
+        let tree = parse_str_to_tree("[[1,2],[[3,4],5]]", 0).0;
+        assert_eq!(143, calc_magnitude(tree));
+    }
+
+    #[test]
+    fn test_magnitude_example_2() {
+        let tree = parse_str_to_tree("[[[[0,7],4],[[7,8],[6,0]]],[8,1]]", 0).0;
+        assert_eq!(1384, calc_magnitude(tree));
+    }
+
+    #[test]
+    fn test_magnitude_example_3() {
+        let tree = parse_str_to_tree("[[[[1,1],[2,2]],[3,3]],[4,4]]", 0).0;
+        assert_eq!(445, calc_magnitude(tree));
+    }
+
+    #[test]
+    fn test_magnitude_example_4() {
+        let tree = parse_str_to_tree("[[[[3,0],[5,3]],[4,4]],[5,5]]", 0).0;
+        assert_eq!(791, calc_magnitude(tree));
+    }
+
+    #[test]
+    fn test_magnitude_example_5() {
+        let tree = parse_str_to_tree("[[[[5,0],[7,4]],[5,5]],[6,6]]", 0).0;
+        assert_eq!(1137, calc_magnitude(tree));
+    }
+
+    #[test]
+    fn test_magnitude_example_6() {
+        let tree = parse_str_to_tree("[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]", 0).0;
+        assert_eq!(3488, calc_magnitude(tree));
     }
 
     fn test_calculate_one() -> Result<(), Box<dyn Error>> {
